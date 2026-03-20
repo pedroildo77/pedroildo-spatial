@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedroildo Spatial • Modo Instalador</title>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root{
+      --bg:#0a0d12;
+      --panel:rgba(10,14,20,.82);
+      --line:rgba(255,255,255,.1);
+      --text:#f1f5ff;
+      --muted:#b7c0d4;
+      --gold:#d8b46b;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+    #app{position:relative;width:100%;height:100%}
+    canvas{display:block;width:100%;height:100%}
+
+    .topbar{
+      position:absolute;top:16px;left:16px;right:16px;z-index:20;
+      display:flex;justify-content:space-between;gap:12px;pointer-events:none;
+    }
+    .panel,.actions,.meta,.toast{pointer-events:auto}
+    .panel,.actions,.meta{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      backdrop-filter:blur(10px);
+      padding:12px 14px;
+    }
+    .panel h1{margin:0 0 6px;font-size:16px}
+    .panel p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+    .actions{
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end
+    }
+    button,select,input{
+      appearance:none;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-size:14px;
+    }
+    input::placeholder{color:var(--muted)}
+    button{cursor:pointer}
+    button:hover{background:rgba(255,255,255,.12)}
+    button.active{
+      background:linear-gradient(135deg,#f7e0a2,#d8b46b 55%,#9b7541);
+      color:#111;border-color:transparent;font-weight:700
+    }
+    .meta{
+      position:absolute;right:16px;bottom:16px;z-index:20;width:min(460px,calc(100vw - 32px))
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .card{padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.03)}
+    .label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+    .value{font-size:14px;font-weight:700;word-break:break-word}
+    .toast{
+      position:absolute;left:50%;top:86px;transform:translateX(-50%) translateY(-8px);
+      opacity:0;transition:.2s;z-index:30;
+      background:rgba(10,14,20,.94);border:1px solid var(--line);border-radius:999px;
+      padding:12px 16px
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    @media (max-width: 1100px){
+      .topbar{flex-direction:column;align-items:stretch}
+      .actions{justify-content:flex-start}
+      .meta{left:16px;right:16px;width:auto}
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="topbar">
+      <div class="panel">
+        <h1>Pedroildo Spatial • Modo Instalador</h1>
+        <p>Clica no chão para colocar. Move, roda, escala, guarda presets e volta a carregá-los.</p>
+      </div>
+
+      <div class="actions">
+        <button id="placeBtn" class="active">Colocar</button>
+        <button id="moveBtn">Mover</button>
+        <button id="rotateBtn">Rodar</button>
+        <button id="scaleBtn">Escalar</button>
+        <button id="snapBtn" class="active">Snap ON</button>
+
+        <input id="placementLabel" type="text" placeholder="Nome do placement" />
+        <select id="placementList">
+          <option value="">Presets guardados</option>
+        </select>
+        <button id="loadPlacementBtn">Carregar</button>
+        <button id="deletePlacementBtn">Apagar</button>
+
+        <button id="saveBtn">Guardar</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="row">
+        <div class="card">
+          <span class="label">Projeto</span>
+          <span id="projectName" class="value">—</span>
+        </div>
+        <div class="card">
+          <span class="label">Modelo</span>
+          <span id="modelName" class="value">—</span>
+        </div>
+        <div class="card">
+          <span class="label">Posição</span>
+          <span id="posText" class="value">—</span>
+        </div>
+        <div class="card">
+          <span class="label">Rotação</span>
+          <span id="rotText" class="value">—</span>
+        </div>
+        <div class="card">
+          <span class="label">Escala</span>
+          <span id="scaleText" class="value">—</span>
+        </div>
+        <div class="card">
+          <span class="label">Estado</span>
+          <span id="statusText" class="value">A iniciar...</span>
+        </div>
+        <div class="card">
+          <span class="label">Área X</span>
+          <span class="value">-4 a 4</span>
+        </div>
+        <div class="card">
+          <span class="label">Área Z</span>
+          <span class="value">-4 a 4</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { TransformControls } from 'three/addons/controls/TransformControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const API = 'http://localhost:3000';
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('project') || '1';
+
+    const projectNameEl = document.getElementById('projectName');
+    const modelNameEl = document.getElementById('modelName');
+    const posTextEl = document.getElementById('posText');
+    const rotTextEl = document.getElementById('rotText');
+    const scaleTextEl = document.getElementById('scaleText');
+    const statusTextEl = document.getElementById('statusText');
+    const toast = document.getElementById('toast');
+
+    const placeBtn = document.getElementById('placeBtn');
+    const moveBtn = document.getElementById('moveBtn');
+    const rotateBtn = document.getElementById('rotateBtn');
+    const scaleBtn = document.getElementById('scaleBtn');
+    const snapBtn = document.getElementById('snapBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const placementLabel = document.getElementById('placementLabel');
+    const placementList = document.getElementById('placementList');
+    const loadPlacementBtn = document.getElementById('loadPlacementBtn');
+    const deletePlacementBtn = document.getElementById('deletePlacementBtn');
+
+    let scene, camera, renderer, orbit, transform;
+    let modelRoot = null;
+    let currentModelId = null;
+    let initialState = null;
+    let snapEnabled = true;
+    let placeMode = true;
+    let groundMesh = null;
+
+    const GROUND_Y = -0.85;
+    const MOVE_SNAP = 0.25;
+    const ROTATE_SNAP = THREE.MathUtils.degToRad(15);
+    const SCALE_SNAP = 0.05;
+
+    const INSTALL_BOUNDS = new THREE.Box3(
+      new THREE.Vector3(-4, GROUND_Y, -4),
+      new THREE.Vector3(4, GROUND_Y, 4)
+    );
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    init();
+    await loadProject();
+
+    function init() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0d12);
+      scene.fog = new THREE.Fog(0x0a0d12, 12, 80);
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 1000);
+      camera.position.set(3.2, 2.2, 5.5);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.shadowMap.enabled = true;
+      document.getElementById('app').prepend(renderer.domElement);
+
+      orbit = new OrbitControls(camera, renderer.domElement);
+      orbit.enableDamping = true;
+      orbit.dampingFactor = 0.06;
+
+      transform = new TransformControls(camera, renderer.domElement);
+      transform.setMode('translate');
+      applySnapSettings();
+
+      transform.addEventListener('dragging-changed', (e) => {
+        orbit.enabled = !e.value;
+      });
+
+      transform.addEventListener('change', () => {
+        if (modelRoot) {
+          clampModelToBounds(modelRoot);
+          snapModelToGround(modelRoot);
+          clampScale(modelRoot);
+          updateInfo();
+        }
+      });
+
+      scene.add(transform);
+
+      addLights();
+      addFloor();
+      addBoundsHelper();
+
+      renderer.domElement.addEventListener('pointerdown', onPointerDown);
+      window.addEventListener('resize', onResize);
+
+      placeBtn.addEventListener('click', () => setPlaceMode(true));
+      moveBtn.addEventListener('click', () => { setPlaceMode(false); setMode('translate', moveBtn); });
+      rotateBtn.addEventListener('click', () => { setPlaceMode(false); setMode('rotate', rotateBtn); });
+      scaleBtn.addEventListener('click', () => { setPlaceMode(false); setMode('scale', scaleBtn); });
+
+      snapBtn.addEventListener('click', toggleSnap);
+      saveBtn.addEventListener('click', savePlacement);
+      resetBtn.addEventListener('click', resetPlacement);
+
+      loadPlacementBtn.addEventListener('click', loadSelectedPlacement);
+      deletePlacementBtn.addEventListener('click', deleteSelectedPlacement);
+
+      animate();
+    }
+
+    function addLights() {
+      scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x333333, 1.1);
+      scene.add(hemi);
+
+      const key = new THREE.DirectionalLight(0xffffff, 2.0);
+      key.position.set(6, 10, 6);
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      scene.add(key);
+
+      const fill = new THREE.DirectionalLight(0x99bbff, 0.8);
+      fill.position.set(-6, 4, -4);
+      scene.add(fill);
+    }
+
+    function addFloor() {
+      groundMesh = new THREE.Mesh(
+        new THREE.CircleGeometry(30, 100),
+        new THREE.MeshStandardMaterial({ color: 0x161b22, metalness: 0.05, roughness: 0.86 })
+      );
+      groundMesh.rotation.x = -Math.PI / 2;
+      groundMesh.position.y = GROUND_Y;
+      groundMesh.receiveShadow = true;
+      scene.add(groundMesh);
+
+      const grid = new THREE.GridHelper(20, 20, 0x666666, 0x333333);
+      grid.position.y = GROUND_Y + 0.01;
+      scene.add(grid);
+    }
+
+    function addBoundsHelper() {
+      const sizeX = INSTALL_BOUNDS.max.x - INSTALL_BOUNDS.min.x;
+      const sizeZ = INSTALL_BOUNDS.max.z - INSTALL_BOUNDS.min.z;
+
+      const area = new THREE.Mesh(
+        new THREE.PlaneGeometry(sizeX, sizeZ),
+        new THREE.MeshBasicMaterial({
+          color: 0xd8b46b,
+          transparent: true,
+          opacity: 0.08,
+          side: THREE.DoubleSide
+        })
+      );
+      area.rotation.x = -Math.PI / 2;
+      area.position.set(
+        (INSTALL_BOUNDS.min.x + INSTALL_BOUNDS.max.x) / 2,
+        GROUND_Y + 0.02,
+        (INSTALL_BOUNDS.min.z + INSTALL_BOUNDS.max.z) / 2
+      );
+      scene.add(area);
+
+      const edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.PlaneGeometry(sizeX, sizeZ)),
+        new THREE.LineBasicMaterial({ color: 0xd8b46b })
+      );
+      edges.rotation.x = -Math.PI / 2;
+      edges.position.copy(area.position);
+      scene.add(edges);
+    }
+
+    async function loadProject() {
+      try {
+        statusTextEl.textContent = 'A carregar projeto';
+
+        const project = await fetch(`${API}/api/project/${projectId}`).then(r => r.json());
+        projectNameEl.textContent = project?.name || `Projeto ${projectId}`;
+
+        const model = await fetch(`${API}/api/project/${projectId}/model`).then(r => r.json());
+        if (!model) {
+          statusTextEl.textContent = 'Sem modelo';
+          showToast('Este projeto ainda não tem modelo');
+          return;
+        }
+
+        currentModelId = model.id;
+        modelNameEl.textContent = model.name || 'Modelo';
+
+        const loader = new GLTFLoader();
+        loader.load(`${API}${model.url}`, async (gltf) => {
+          modelRoot = gltf.scene;
+          scene.add(modelRoot);
+
+          modelRoot.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+
+          normalizeModel(modelRoot, 2.0);
+          snapModelToGround(modelRoot);
+          clampModelToBounds(modelRoot);
+          fitCamera(modelRoot);
+
+          transform.attach(modelRoot);
+
+          const placement = await fetch(`${API}/api/placement/${projectId}`).then(r => r.json());
+          if (placement) {
+            applyPlacement(placement);
+            placementLabel.value = placement.label || '';
+            statusTextEl.textContent = 'Placement aplicado';
+          } else {
+            statusTextEl.textContent = 'Pronto para colocar';
+          }
+
+          storeInitialState();
+          updateInfo();
+          await loadPlacementList();
+        }, undefined, (err) => {
+          console.error(err);
+          statusTextEl.textContent = 'Erro';
+          showToast('Erro ao abrir o modelo');
+        });
+      } catch (err) {
+        console.error(err);
+        statusTextEl.textContent = 'Erro';
+        showToast('Erro ao carregar projeto');
+      }
+    }
+
+    function onPointerDown(event) {
+      if (!placeMode || !modelRoot || transform.dragging) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObject(groundMesh, false);
+
+      if (hits.length) {
+        const p = hits[0].point.clone();
+
+        if (snapEnabled) {
+          p.x = Math.round(p.x / MOVE_SNAP) * MOVE_SNAP;
+          p.z = Math.round(p.z / MOVE_SNAP) * MOVE_SNAP;
+        }
+
+        const clamped = new THREE.Vector3();
+        INSTALL_BOUNDS.clampPoint(new THREE.Vector3(p.x, GROUND_Y, p.z), clamped);
+
+        modelRoot.position.x = clamped.x;
+        modelRoot.position.z = clamped.z;
+        snapModelToGround(modelRoot);
+        updateInfo();
+        statusTextEl.textContent = 'Objeto colocado';
+        showToast('Objeto colocado no chão');
+      }
+    }
+
+    function normalizeModel(object, targetSize = 2.0) {
+      const box = new THREE.Box3().setFromObject(object);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const scale = targetSize / maxDim;
+      object.scale.multiplyScalar(scale);
+    }
+
+    function snapModelToGround(object) {
+      const box = new THREE.Box3().setFromObject(object);
+      const delta = GROUND_Y - box.min.y;
+      object.position.y += delta;
+    }
+
+    function clampScale(object) {
+      const s = THREE.MathUtils.clamp(object.scale.x, 0.1, 10);
+      object.scale.setScalar(s);
+    }
+
+    function clampModelToBounds(object) {
+      const clamped = new THREE.Vector3();
+      INSTALL_BOUNDS.clampPoint(
+        new THREE.Vector3(object.position.x, GROUND_Y, object.position.z),
+        clamped
+      );
+      object.position.x = clamped.x;
+      object.position.z = clamped.z;
+    }
+
+    function fitCamera(object) {
+      const box = new THREE.Box3().setFromObject(object);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const fov = camera.fov * (Math.PI / 180);
+      let cameraZ = Math.abs((maxDim / 2) / Math.tan(fov / 2));
+      cameraZ *= 1.5;
+
+      camera.position.set(center.x + cameraZ * 0.9, center.y + maxDim * 0.45, center.z + cameraZ);
+      orbit.target.copy(center);
+      orbit.update();
+    }
+
+    function applyPlacement(p) {
+      if (!modelRoot) return;
+
+      modelRoot.position.set(
+        Number(p.pos_x || 0),
+        Number(p.pos_y || 0),
+        Number(p.pos_z || 0)
+      );
+
+      modelRoot.rotation.set(
+        Number(p.rot_x || 0),
+        Number(p.rot_y || 0),
+        Number(p.rot_z || 0)
+      );
+
+      const s = Number(p.scale || 1);
+      modelRoot.scale.setScalar(s);
+
+      clampModelToBounds(modelRoot);
+      snapModelToGround(modelRoot);
+      clampScale(modelRoot);
+      updateInfo();
+    }
+
+    function storeInitialState() {
+      if (!modelRoot) return;
+      initialState = {
+        position: modelRoot.position.clone(),
+        rotation: new THREE.Euler(modelRoot.rotation.x, modelRoot.rotation.y, modelRoot.rotation.z),
+        scale: modelRoot.scale.clone()
+      };
+    }
+
+    function resetPlacement() {
+      if (!modelRoot || !initialState) return;
+      modelRoot.position.copy(initialState.position);
+      modelRoot.rotation.copy(initialState.rotation);
+      modelRoot.scale.copy(initialState.scale);
+      clampModelToBounds(modelRoot);
+      snapModelToGround(modelRoot);
+      clampScale(modelRoot);
+      updateInfo();
+      showToast('Transform resetado');
+    }
+
+    async function savePlacement() {
+      if (!modelRoot || !currentModelId) return;
+
+      const data = {
+        project_id: Number(projectId),
+        model_id: Number(currentModelId),
+        label: placementLabel.value || `Placement ${new Date().toLocaleTimeString()}`,
+        pos_x: modelRoot.position.x,
+        pos_y: modelRoot.position.y,
+        pos_z: modelRoot.position.z,
+        rot_x: modelRoot.rotation.x,
+        rot_y: modelRoot.rotation.y,
+        rot_z: modelRoot.rotation.z,
+        scale: modelRoot.scale.x,
+        latitude: 0,
+        longitude: 0,
+        altitude: 0
+      };
+
+      try {
+        const res = await fetch(`${API}/api/placement`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const json = await res.json();
+
+        if (json?.id) {
+          statusTextEl.textContent = 'Placement guardado';
+          showToast('Placement guardado');
+          storeInitialState();
+          await loadPlacementList();
+        } else {
+          throw new Error('Resposta inválida');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao guardar');
+      }
+    }
+
+    async function loadPlacementList() {
+      try {
+        const rows = await fetch(`${API}/api/placements/${projectId}`).then(r => r.json());
+
+        placementList.innerHTML = '<option value=\"\">Presets guardados</option>';
+
+        rows.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = item.label || `Placement ${item.id}`;
+          placementList.appendChild(opt);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadSelectedPlacement() {
+      const id = placementList.value;
+      if (!id) return;
+
+      try {
+        const placement = await fetch(`${API}/api/placement/item/${id}`).then(r => r.json());
+        if (!placement) return;
+
+        applyPlacement(placement);
+        placementLabel.value = placement.label || '';
+        statusTextEl.textContent = 'Preset carregado';
+        showToast('Preset carregado');
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao carregar preset');
+      }
+    }
+
+    async function deleteSelectedPlacement() {
+      const id = placementList.value;
+      if (!id) return;
+
+      const ok = confirm('Apagar este placement?');
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API}/api/placement/item/${id}`, { method: 'DELETE' });
+        const json = await res.json();
+
+        if (json?.deleted) {
+          showToast('Preset apagado');
+          placementLabel.value = '';
+          await loadPlacementList();
+        } else {
+          showToast('Não foi possível apagar');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao apagar preset');
+      }
+    }
+
+    function setPlaceMode(enabled) {
+      placeMode = enabled;
+      placeBtn.classList.toggle('active', enabled);
+      [moveBtn, rotateBtn, scaleBtn].forEach(b => b.classList.remove('active'));
+      if (!enabled) return;
+      statusTextEl.textContent = 'Clique no chão para colocar';
+      showToast('Modo colocar ativo');
+    }
+
+    function setMode(mode, btn) {
+      transform.setMode(mode);
+      [moveBtn, rotateBtn, scaleBtn].forEach(b => b.classList.remove('active'));
+      placeBtn.classList.remove('active');
+      btn.classList.add('active');
+      applySnapSettings();
+    }
+
+    function toggleSnap() {
+      snapEnabled = !snapEnabled;
+      snapBtn.classList.toggle('active', snapEnabled);
+      snapBtn.textContent = snapEnabled ? 'Snap ON' : 'Snap OFF';
+      applySnapSettings();
+      showToast(snapEnabled ? 'Snap ligado' : 'Snap desligado');
+    }
+
+    function applySnapSettings() {
+      if (snapEnabled) {
+        transform.translationSnap = transform.mode === 'translate' ? MOVE_SNAP : null;
+        transform.rotationSnap = transform.mode === 'rotate' ? ROTATE_SNAP : null;
+        transform.scaleSnap = transform.mode === 'scale' ? SCALE_SNAP : null;
+      } else {
+        transform.translationSnap = null;
+        transform.rotationSnap = null;
+        transform.scaleSnap = null;
+      }
+    }
+
+    function updateInfo() {
+      if (!modelRoot) return;
+      posTextEl.textContent = `${modelRoot.position.x.toFixed(2)}, ${modelRoot.position.y.toFixed(2)}, ${modelRoot.position.z.toFixed(2)}`;
+      rotTextEl.textContent = `${THREE.MathUtils.radToDeg(modelRoot.rotation.x).toFixed(1)}°, ${THREE.MathUtils.radToDeg(modelRoot.rotation.y).toFixed(1)}°, ${THREE.MathUtils.radToDeg(modelRoot.rotation.z).toFixed(1)}°`;
+      scaleTextEl.textContent = modelRoot.scale.x.toFixed(3);
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      orbit.update();
+      renderer.render(scene, camera);
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+  </script>
+</body>
+</html>

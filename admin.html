@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedroildo Spatial • Admin</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#121821;
+      --panel-2:#171e28;
+      --line:rgba(255,255,255,.08);
+      --text:#eef3ff;
+      --muted:#aeb8cc;
+      --gold:#d8b46b;
+      --danger:#b94b4b;
+      --ok:#4aa56b;
+      --shadow:0 18px 44px rgba(0,0,0,.24);
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      background:linear-gradient(180deg,#0d1218 0%,#090c11 100%);
+      color:var(--text);
+      font-family:Arial,sans-serif;
+    }
+
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:24px;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+      margin-bottom:20px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .badge{
+      width:46px;
+      height:46px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
+      font-weight:800;
+      color:#111;
+      background:linear-gradient(135deg,#f7e0a2,#d8b46b 55%,#9b7541);
+    }
+
+    .brand h1{
+      margin:0;
+      font-size:22px;
+    }
+
+    .brand p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:360px 1fr;
+      gap:20px;
+    }
+
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .card-head{
+      padding:16px 18px;
+      border-bottom:1px solid var(--line);
+      background:rgba(255,255,255,.02);
+    }
+
+    .card-head h2{
+      margin:0;
+      font-size:16px;
+    }
+
+    .card-head p{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .card-body{
+      padding:18px;
+    }
+
+    .field{
+      margin-bottom:14px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:6px;
+      font-size:12px;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .field input,
+    .field textarea,
+    .field select{
+      width:100%;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--panel-2);
+      color:var(--text);
+      padding:12px 12px;
+      font:inherit;
+    }
+
+    .field textarea{
+      min-height:110px;
+      resize:vertical;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    button{
+      border:none;
+      border-radius:12px;
+      padding:12px 14px;
+      font:inherit;
+      cursor:pointer;
+      background:#283243;
+      color:var(--text);
+    }
+
+    button.primary{
+      background:linear-gradient(135deg,#f7e0a2,#d8b46b 55%,#9b7541);
+      color:#111;
+      font-weight:700;
+    }
+
+    button.ok{
+      background:var(--ok);
+      color:white;
+    }
+
+    button.danger{
+      background:var(--danger);
+      color:white;
+    }
+
+    button:hover{
+      filter:brightness(1.06);
+    }
+
+    .status{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:13px;
+      min-height:20px;
+    }
+
+    .project-list{
+      display:grid;
+      gap:14px;
+    }
+
+    .project-item{
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:var(--panel-2);
+      padding:16px;
+    }
+
+    .project-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      margin-bottom:10px;
+    }
+
+    .project-title{
+      font-size:18px;
+      font-weight:700;
+      margin:0;
+    }
+
+    .project-client{
+      color:var(--gold);
+      font-size:13px;
+      margin-top:4px;
+    }
+
+    .project-desc{
+      margin:0 0 14px;
+      color:var(--muted);
+      line-height:1.5;
+      font-size:14px;
+    }
+
+    .link-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .mini{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .model-box{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.05);
+      font-size:13px;
+    }
+
+    .empty{
+      color:var(--muted);
+      padding:20px;
+      text-align:center;
+      border:1px dashed var(--line);
+      border-radius:14px;
+    }
+
+    @media (max-width: 980px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      .link-grid{
+        grid-template-columns:1fr;
+      }
+
+      .row{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="badge">PI</div>
+        <div>
+          <h1>Pedroildo Spatial • Admin</h1>
+          <p>Projetos, modelos e links diretos</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-head">
+          <h2>Criar projeto</h2>
+          <p>Cria um projeto e envia logo o modelo GLB associado.</p>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label for="projectName">Nome do projeto</label>
+            <input id="projectName" type="text" placeholder="Ex: Alien Demo" />
+          </div>
+
+          <div class="field">
+            <label for="projectClient">Cliente</label>
+            <input id="projectClient" type="text" placeholder="Ex: Pedroildo" />
+          </div>
+
+          <div class="field">
+            <label for="projectDesc">Descrição</label>
+            <textarea id="projectDesc" placeholder="Descrição curta do projeto"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="projectModel">Modelo GLB</label>
+            <input id="projectModel" type="file" accept=".glb,.gltf" />
+          </div>
+
+          <div class="actions">
+            <button id="createProjectBtn" class="primary">Criar projeto + enviar modelo</button>
+            <button id="refreshBtn">Atualizar lista</button>
+          </div>
+
+          <div id="formStatus" class="status"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Projetos</h2>
+          <p>Abre logo os links do cliente, viewer e instalador.</p>
+        </div>
+        <div class="card-body">
+          <div id="projectsContainer" class="project-list">
+            <div class="empty">A carregar projetos...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "http://localhost:3000";
+
+    const projectName = document.getElementById("projectName");
+    const projectClient = document.getElementById("projectClient");
+    const projectDesc = document.getElementById("projectDesc");
+    const projectModel = document.getElementById("projectModel");
+    const createProjectBtn = document.getElementById("createProjectBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const formStatus = document.getElementById("formStatus");
+    const projectsContainer = document.getElementById("projectsContainer");
+
+    createProjectBtn.addEventListener("click", createProjectFlow);
+    refreshBtn.addEventListener("click", loadProjects);
+
+    loadProjects();
+
+    async function createProjectFlow(){
+      const name = projectName.value.trim();
+      const client = projectClient.value.trim();
+      const description = projectDesc.value.trim();
+      const modelFile = projectModel.files[0];
+
+      if(!name){
+        setFormStatus("Escreve o nome do projeto.");
+        return;
+      }
+
+      if(!modelFile){
+        setFormStatus("Escolhe um ficheiro GLB.");
+        return;
+      }
+
+      try{
+        createProjectBtn.disabled = true;
+        setFormStatus("A criar projeto...");
+
+        // 1. criar projeto
+        const projectRes = await fetch(`${API}/api/project`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, client, description })
+        });
+
+        const projectJson = await projectRes.json();
+
+        if(!projectJson.id){
+          throw new Error("Falha ao criar projeto");
+        }
+
+        const projectId = projectJson.id;
+        setFormStatus(`Projeto ${projectId} criado. A enviar modelo...`);
+
+        // 2. upload do modelo
+        const fd = new FormData();
+        fd.append("project", projectId);
+        fd.append("model", modelFile);
+
+        const modelRes = await fetch(`${API}/api/model`, {
+          method: "POST",
+          body: fd
+        });
+
+        const modelJson = await modelRes.json();
+
+        if(!modelJson.id){
+          throw new Error("Falha ao enviar modelo");
+        }
+
+        setFormStatus(`Projeto ${projectId} criado com sucesso.`);
+        clearForm();
+        await loadProjects();
+
+      } catch(err){
+        console.error(err);
+        setFormStatus("Erro ao criar projeto ou enviar modelo.");
+      } finally {
+        createProjectBtn.disabled = false;
+      }
+    }
+
+    async function loadProjects(){
+      try{
+        projectsContainer.innerHTML = `<div class="empty">A carregar projetos...</div>`;
+
+        const projects = await fetch(`${API}/api/projects`).then(r => r.json());
+
+        if(!projects || projects.length === 0){
+          projectsContainer.innerHTML = `<div class="empty">Ainda não existem projetos.</div>`;
+          return;
+        }
+
+        const html = await Promise.all(projects.map(renderProjectCard));
+        projectsContainer.innerHTML = html.join("");
+        bindProjectButtons();
+
+      } catch(err){
+        console.error(err);
+        projectsContainer.innerHTML = `<div class="empty">Erro ao carregar projetos.</div>`;
+      }
+    }
+
+    async function renderProjectCard(project){
+      let modelHtml = `<div class="model-box mini">Sem modelo associado</div>`;
+
+      try{
+        const model = await fetch(`${API}/api/project/${project.id}/model`).then(r => r.json());
+
+        if(model){
+          modelHtml = `
+            <div class="model-box">
+              <strong>Modelo:</strong> ${escapeHtml(model.name || "Sem nome")}
+              <div class="mini">URL: ${escapeHtml(model.url || "")}</div>
+            </div>
+          `;
+        }
+      } catch(err){
+        console.error(err);
+      }
+
+      return `
+        <div class="project-item">
+          <div class="project-top">
+            <div>
+              <div class="project-title">${escapeHtml(project.name || "Projeto sem nome")}</div>
+              <div class="project-client">${escapeHtml(project.client || "Sem cliente")}</div>
+            </div>
+            <div class="mini">#${project.id}</div>
+          </div>
+
+          <p class="project-desc">${escapeHtml(project.description || "Sem descrição.")}</p>
+
+          <div class="link-grid">
+            <button class="ok open-link" data-url="${location.origin}/client.html?project=${project.id}">
+              Abrir Client
+            </button>
+            <button class="open-link" data-url="${location.origin}/viewer?project=${project.id}">
+              Abrir Viewer
+            </button>
+            <button class="open-link" data-url="${location.origin}/installer.html?project=${project.id}">
+              Abrir Installer
+            </button>
+          </div>
+
+          <div class="actions">
+            <button class="copy-link" data-url="${location.origin}/client.html?project=${project.id}">
+              Copiar link cliente
+            </button>
+            <button class="copy-link" data-url="${location.origin}/installer.html?project=${project.id}">
+              Copiar link instalador
+            </button>
+          </div>
+
+          ${modelHtml}
+        </div>
+      `;
+    }
+
+    function bindProjectButtons(){
+      document.querySelectorAll(".open-link").forEach(btn => {
+        btn.addEventListener("click", () => {
+          window.open(btn.dataset.url, "_blank");
+        });
+      });
+
+      document.querySelectorAll(".copy-link").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          try{
+            await navigator.clipboard.writeText(btn.dataset.url);
+            setFormStatus("Link copiado.");
+          } catch(err){
+            console.error(err);
+            setFormStatus("Não foi possível copiar o link.");
+          }
+        });
+      });
+    }
+
+    function clearForm(){
+      projectName.value = "";
+      projectClient.value = "";
+      projectDesc.value = "";
+      projectModel.value = "";
+    }
+
+    function setFormStatus(message){
+      formStatus.textContent = message;
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
