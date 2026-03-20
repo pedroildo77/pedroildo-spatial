@@ -15,9 +15,6 @@ const WORLDMAPS_DIR = path.join(ROOT_DIR, 'worldmaps');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 if (!fs.existsSync(WORLDMAPS_DIR)) fs.mkdirSync(WORLDMAPS_DIR, { recursive: true });
 
-// -----------------------------
-// Middleware
-// -----------------------------
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -27,20 +24,9 @@ app.use('/models', express.static(UPLOADS_DIR));
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.use('/worldmaps', express.static(WORLDMAPS_DIR));
 
-// -----------------------------
-// Upload configs
-// -----------------------------
-const modelUpload = multer({
-  dest: UPLOADS_DIR
-});
+const modelUpload = multer({ dest: UPLOADS_DIR });
+const worldmapUpload = multer({ dest: WORLDMAPS_DIR });
 
-const worldmapUpload = multer({
-  dest: WORLDMAPS_DIR
-});
-
-// -----------------------------
-// Rotas HTML
-// -----------------------------
 app.get('/', (req, res) => {
   res.send('Pedroildo Spatial backend running');
 });
@@ -61,9 +47,10 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(ROOT_DIR, 'admin.html'));
 });
 
-// -----------------------------
-// PROJETOS
-// -----------------------------
+/* =========================
+   PROJETOS
+========================= */
+
 app.post('/api/project', (req, res) => {
   const { name, client, description } = req.body;
 
@@ -100,9 +87,80 @@ app.get('/api/project/:id', (req, res) => {
   );
 });
 
-// -----------------------------
-// MODELOS
-// -----------------------------
+app.put('/api/project/:id', (req, res) => {
+  const id = req.params.id;
+  const { name, client, description } = req.body;
+
+  db.run(
+    `UPDATE projects
+     SET name = ?, client = ?, description = ?
+     WHERE id = ?`,
+    [name || '', client || '', description || '', id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Projeto não encontrado' });
+      }
+      res.json({ updated: true, id: Number(id) });
+    }
+  );
+});
+
+app.delete('/api/project/:id', (req, res) => {
+  const projectId = req.params.id;
+
+  db.all(
+    `SELECT * FROM models WHERE project_id = ?`,
+    [projectId],
+    (modelsErr, models) => {
+      if (modelsErr) return res.status(500).json({ error: modelsErr.message });
+
+      for (const model of models || []) {
+        if (model.glb_path) {
+          const filePath = path.join(UPLOADS_DIR, path.basename(model.glb_path));
+          if (fs.existsSync(filePath)) {
+            try { fs.unlinkSync(filePath); } catch (_) {}
+          }
+        }
+      }
+
+      db.all(
+        `SELECT * FROM anchors WHERE project_id = ?`,
+        [projectId],
+        (anchorsErr, anchors) => {
+          if (anchorsErr) return res.status(500).json({ error: anchorsErr.message });
+
+          for (const anchor of anchors || []) {
+            if (anchor.worldmap_path) {
+              const mapPath = path.join(WORLDMAPS_DIR, path.basename(anchor.worldmap_path));
+              if (fs.existsSync(mapPath)) {
+                try { fs.unlinkSync(mapPath); } catch (_) {}
+              }
+            }
+          }
+
+          db.serialize(() => {
+            db.run(`DELETE FROM placements WHERE project_id = ?`, [projectId]);
+            db.run(`DELETE FROM anchors WHERE project_id = ?`, [projectId]);
+            db.run(`DELETE FROM models WHERE project_id = ?`, [projectId]);
+            db.run(`DELETE FROM projects WHERE id = ?`, [projectId], function (deleteErr) {
+              if (deleteErr) return res.status(500).json({ error: deleteErr.message });
+              if (this.changes === 0) {
+                return res.status(404).json({ error: 'Projeto não encontrado' });
+              }
+              res.json({ deleted: true, id: Number(projectId) });
+            });
+          });
+        }
+      );
+    }
+  );
+});
+
+/* =========================
+   MODELOS
+========================= */
+
 app.post('/api/model', modelUpload.single('model'), (req, res) => {
   const projectId = req.body.project;
   const originalName = req.file ? req.file.originalname : null;
@@ -182,9 +240,10 @@ app.get('/api/project/:projectId/models', (req, res) => {
   );
 });
 
-// -----------------------------
-// PLACEMENTS
-// -----------------------------
+/* =========================
+   PLACEMENTS
+========================= */
+
 app.post('/api/placement', (req, res) => {
   const p = req.body;
 
@@ -270,9 +329,10 @@ app.delete('/api/placement/item/:id', (req, res) => {
   );
 });
 
-// -----------------------------
-// WORLDMAPS
-// -----------------------------
+/* =========================
+   WORLDMAPS
+========================= */
+
 app.post('/api/worldmap', worldmapUpload.single('worldmap'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Ficheiro worldmap obrigatório' });
@@ -296,9 +356,10 @@ app.get('/api/worldmap/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
-// -----------------------------
-// ANCHORS
-// -----------------------------
+/* =========================
+   ANCHORS
+========================= */
+
 app.post('/api/anchor', (req, res) => {
   const a = req.body;
 
@@ -415,9 +476,10 @@ app.delete('/api/anchor/:id', (req, res) => {
   );
 });
 
-// -----------------------------
-// Helpers
-// -----------------------------
+/* =========================
+   HELPERS
+========================= */
+
 function safeParseJSON(value) {
   if (!value) return null;
   try {
@@ -427,9 +489,10 @@ function safeParseJSON(value) {
   }
 }
 
-// -----------------------------
-// START
-// -----------------------------
+/* =========================
+   START
+========================= */
+
 app.listen(PORT, () => {
   console.log(`Pedroildo Spatial backend running on http://localhost:${PORT}`);
 });
